@@ -1,0 +1,513 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>잡소리 점검 리포트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: one question, "what changed in the car when the noise happened?" Finding, then a change table in time order, then the signals of the chosen capture. */
+:root {
+  --paper: #f3f5f7;
+  --sheet: #ffffff;
+  --ink: #16202b;
+  --muted: #5a6875;
+  --rule: #cfd6dd;
+  --grid: #e3e7ec;
+  --band: #e4e8ed;
+  --stamp: #1d4fb8;
+  --stamp-soft: #e6edfa;
+  --flag: #8a4b00;
+  --flag-soft: #fbeedb;
+  --mark-line: #1d4fb8;
+  --mark-change: #c25e00;
+  --body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --data: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #10161d; --sheet: #182029; --ink: #e8edf2; --muted: #9aa8b5; --rule: #33404d; --grid: #27323d; --band: #2a3540;
+    --stamp: #8fb2f5; --stamp-soft: #1f2c44; --flag: #f0b866; --flag-soft: #3a2b14;
+    --mark-line: #5f88e2; --mark-change: #c07f22;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #10161d; --sheet: #182029; --ink: #e8edf2; --muted: #9aa8b5; --rule: #33404d; --grid: #27323d; --band: #2a3540;
+  --stamp: #8fb2f5; --stamp-soft: #1f2c44; --flag: #f0b866; --flag-soft: #3a2b14;
+  --mark-line: #5f88e2; --mark-change: #c07f22;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 15px/1.55 var(--body);
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+table, button { font: inherit; color: inherit; }
+main { max-width: 900px; margin-inline: auto; display: grid; gap: 26px; }
+main > * { min-width: 0; }
+h1, h2, h3, p { margin: 0; }
+h2 { font-size: 17px; font-weight: 700; text-wrap: balance; }
+.num { font-family: var(--data); font-variant-numeric: tabular-nums; }
+.note { color: var(--muted); font-size: 13px; }
+section { display: grid; gap: 10px; }
+section > * { min-width: 0; }
+
+.sample { background: var(--flag-soft); color: var(--flag); border: 1px solid var(--flag); padding: 8px 12px; font-size: 13px; font-weight: 500; }
+
+.head { display: grid; gap: 10px; border-bottom: 2px solid var(--ink); padding-bottom: 16px; }
+.head h1 { font-size: 15px; font-weight: 700; color: var(--muted); }
+.finding { font-size: 25px; font-weight: 700; line-height: 1.35; text-wrap: balance; }
+.todo { font-size: 16px; }
+.todo b { color: var(--stamp); }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 0; font-size: 13px; }
+.meta div { display: flex; gap: 6px; }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; font-weight: 500; }
+
+.table-wrap { background: var(--sheet); border: 1px solid var(--rule); overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 7px 8px; border-bottom: 2px solid var(--ink); white-space: nowrap; }
+td { padding: 8px; vertical-align: top; border-top: 1px solid var(--rule); }
+tbody tr:first-child td { border-top: 0; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--paper); }
+tbody tr.on td { background: var(--stamp-soft); }
+.pick { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; font-weight: 500; white-space: nowrap; }
+.pick:focus-visible, .play:focus-visible { outline: 2px solid var(--stamp); outline-offset: 2px; }
+.where { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+.chip { display: inline-block; background: var(--flag-soft); color: var(--flag); font-size: 12px; font-weight: 500; padding: 0 5px; margin-top: 2px; }
+.change { font-weight: 700; display: inline-flex; gap: 5px; align-items: baseline; flex-wrap: wrap; }
+.change::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--mark-change); flex: none; }
+.when { font-weight: 400; font-size: 12px; white-space: nowrap; }
+.same { color: var(--muted); font-size: 12px; }
+.play { width: 34px; height: 34px; border: 1px solid var(--stamp); background: var(--sheet); color: var(--stamp); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.play:hover { background: var(--stamp-soft); }
+.play svg { width: 12px; height: 12px; fill: currentColor; display: block; }
+
+.panel { display: none; gap: 8px; background: var(--sheet); border: 1px solid var(--rule); padding: 14px; }
+.panel.on { display: grid; }
+.panel > * { min-width: 0; }
+.panel h3 { font-size: 15px; font-weight: 700; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
+.chart text { font-family: var(--body); fill: var(--muted); font-size: 11px; }
+.chart text.tt { fill: var(--ink); font-size: 12px; font-weight: 500; }
+.chart text.tc { fill: var(--ink); font-size: 12px; font-weight: 700; }
+.chart text.tick { font-family: var(--data); font-size: 10.5px; }
+.tip { position: absolute; top: 0; pointer-events: none; background: var(--ink); color: var(--sheet); font-size: 12px; line-height: 1.45; padding: 5px 8px; white-space: nowrap; z-index: 2; }
+details { font-size: 13px; }
+summary { cursor: pointer; color: var(--muted); }
+.vals { overflow-x: auto; margin-top: 6px; }
+.vals table { font-size: 12px; }
+.vals th, .vals td { padding: 3px 8px; white-space: nowrap; }
+
+.check-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.check-list li { display: grid; gap: 3px; align-content: start; border-top: 1px solid var(--rule); padding-top: 8px; }
+.check-list h3 { font-size: 15px; font-weight: 700; }
+.check-list p { font-size: 13px; }
+.label { color: var(--muted); font-size: 12px; font-weight: 500; margin-right: 6px; }
+footer { display: grid; gap: 4px; border-top: 1px solid var(--rule); padding-top: 12px; }
+
+@media screen and (max-width: 640px) {
+  .finding { font-size: 21px; }
+  table { font-size: 13px; }
+  td, th { padding-inline: 5px; }
+  .panel { padding: 10px; }
+  .check-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  :root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
+    --paper: #ffffff; --sheet: #ffffff; --ink: #000000; --muted: #444b52; --rule: #9aa3ab; --grid: #dfe3e7; --band: #e4e8ed;
+    --stamp: #123a8f; --stamp-soft: #ffffff; --flag: #6b3a00; --flag-soft: #f8efe2;
+    --mark-line: #1d4fb8; --mark-change: #c25e00;
+    color-scheme: light;
+  }
+  body { padding: 0; font-size: 10pt; }
+  main { max-width: none; display: block; }
+  main > * { margin-bottom: 14px; }
+  section { display: block; }
+  section > * { margin-bottom: 6px; }
+  #panels { display: block !important; }
+  .panel { margin-bottom: 8px; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .finding { font-size: 16pt; }
+  .play, .col-play, details, .pick-hint { display: none; }
+  .panel { display: grid; break-inside: avoid; padding: 8px; }
+  .table-wrap { overflow: visible; }
+  tbody tr { break-inside: avoid; }
+}
+</style>
+
+<main>
+  <p class="sample" role="note">샘플 리포트입니다. 차량, 신호, 점검 후보는 모두 가상이고, 재생되는 소리는 합성한 예시음입니다.</p>
+
+  <header class="head">
+    <h1>잡소리 점검 리포트</h1>
+    <p class="finding" id="finding"></p>
+    <p class="todo"><b>먼저 이렇게 시운전해 보세요.</b> 브레이크로 감속한 뒤 다시 출발할 때 들어 보세요.</p>
+    <dl class="meta">
+      <div><dt>차량</dt><dd>가상 세단 2025년식</dd></div>
+      <div><dt>기간</dt><dd class="num">2026-10-28 ~ 11-06</dd></div>
+      <div><dt>녹음</dt><dd id="total"></dd></div>
+    </dl>
+  </header>
+
+  <section aria-labelledby="t-title">
+    <h2 id="t-title">소리 전후로 바뀐 신호 (오래된 순)</h2>
+    <p class="note" id="rule"></p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">일시, 소리 위치</th>
+            <th scope="col">소리 때 속도</th>
+            <th scope="col">브레이크</th>
+            <th scope="col">기어</th>
+            <th scope="col">조향각</th>
+            <th scope="col" class="col-play"><span class="note">듣기</span></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="note">운전자가 녹음한 순간만 집계했습니다. 녹음하지 않은 순간에 소리가 났는지는 알 수 없습니다.</p>
+  </section>
+
+  <section aria-labelledby="c-title">
+    <h2 id="c-title">그 순간의 신호</h2>
+    <p class="note pick-hint">위 표에서 행을 고르면 바뀝니다. 신호는 자동 기록되며 앱에서 수정할 수 없습니다.</p>
+    <div id="panels" style="display:grid;gap:10px;min-width:0"></div>
+  </section>
+
+  <section aria-labelledby="k-title">
+    <h2 id="k-title">점검 후보 (참고용)</h2>
+    <p class="note">기록된 조건에 맞춘 후보이며 원인을 확정하지 않습니다.</p>
+    <ul class="check-list" id="checks"></ul>
+  </section>
+
+  <footer class="note">
+    <p>리포트 생성 <span class="num">2026-11-07</span>. 링크 만료 <span class="num">2026-12-07</span>.</p>
+    <p>소리 위치는 운전자가 입력한 값입니다. 운전자가 받는 사람과 포함 항목을 확인한 뒤 공유한 리포트입니다.</p>
+  </footer>
+</main>
+
+<script>
+const AREA = '조수석 대시보드';
+const EVENTS = [
+  { n: 1, date: '10/28 (수)', time: '08:14', speed: 31, release: -1.2, since: 9,  temp: 9,    fan: 2, win: null, area: AREA, bursts: 3 },
+  { n: 2, date: '10/30 (금)', time: '08:21', speed: 28, release: -0.8, since: 7,  temp: 7,    fan: 3, win: null, area: AREA, bursts: 4 },
+  { n: 3, date: '11/02 (월)', time: '18:47', speed: 38, steer: { at: -0.5, delta: 7 }, since: 22, temp: 14, fan: 2, win: null, area: null, bursts: 2 },
+  { n: 4, date: '11/04 (수)', time: '08:09', speed: 6,  release: -1.0, stopped: true, gear: { from: 'N', at: -2.4 }, since: 1, temp: 6, fan: 2, win: null, area: AREA, bursts: 3 },
+  { n: 5, date: '11/05 (목)', time: '08:17', speed: 33, release: -1.6, since: 8,  temp: null, fan: 1, win: '운전석 창 30% 열림', area: AREA, bursts: 3 },
+  { n: 6, date: '11/06 (금)', time: '08:12', speed: 29, release: -0.9, since: 10, temp: 5,    fan: 3, win: null, area: AREA, bursts: 5 },
+];
+
+const $ = (id) => document.getElementById(id);
+const WIN = 15, DT = 0.2;
+const CHG = { from: -3, to: 1, steer: 5 };
+const sec = (t) => (t < 0 ? '−' : '+') + Math.abs(t).toFixed(1) + '초';
+
+function rng(seed) {
+  return () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function buildSignals(e) {
+  const rand = rng(e.n * 101);
+  const out = [];
+  const a = e.stopped ? 6 : 2.4;
+  const low = e.release == null ? e.speed : Math.max(0, e.speed + a * e.release);
+  const brakeFrom = e.release == null ? null : e.stopped ? -99 : e.release - 4;
+  const cap = e.speed + 12;
+  let wander = 0;
+  const steps = Math.round(2 * WIN / DT);
+  for (let i = 0; i <= steps; i++) {
+    const t = -WIN + i * DT;
+    let v;
+    if (e.release == null) v = e.speed;
+    else if (t >= e.release) v = Math.min(cap, low + a * (t - e.release));
+    else if (e.stopped) v = 0;
+    else if (t >= brakeFrom) v = low + (e.release - t) * 3.5;
+    else v = low + 14;
+    if (v > 0) v += (rand() - 0.5) * 0.7;
+    wander += (rand() - 0.5) * 0.25 - wander * 0.08;
+    let s = wander;
+    if (e.steer) {
+      const up = Math.min(1, Math.max(0, (t - e.steer.at) / 0.4));
+      const down = Math.min(1, Math.max(0, (t - 5) / 1.5));
+      s += e.steer.delta * up * (1 - down);
+    }
+    out.push({
+      t: Math.round(t * 10) / 10,
+      speed: Math.max(0, v),
+      steer: s,
+      brake: e.release != null && t >= brakeFrom && t < e.release,
+      gear: e.gear && t < e.gear.at ? e.gear.from : 'D',
+    });
+  }
+  return out;
+}
+
+function findChanges(sig) {
+  const inWin = sig.filter((p) => p.t >= CHG.from && p.t <= CHG.to);
+  const res = { brake: null, gear: null, steer: null };
+  for (let i = 1; i < inWin.length; i++) {
+    const a = inWin[i - 1], b = inWin[i];
+    if (a.brake !== b.brake) res.brake = { t: b.t, text: b.brake ? '밟음' : '놓음' };
+    if (a.gear !== b.gear) res.gear = { t: b.t, text: `${a.gear}→${b.gear}` };
+  }
+  const base = inWin[0].steer;
+  const hit = inWin.find((p) => Math.abs(p.steer - base) >= CHG.steer);
+  if (hit) res.steer = { t: hit.t, text: `${Math.round(hit.steer - base) > 0 ? '+' : ''}${Math.round(hit.steer - base)}°` };
+  return res;
+}
+
+const DATA = EVENTS.map((e) => { const sig = buildSignals(e); return { ...e, sig, ch: findChanges(sig) }; });
+
+// All counts below come from DATA so the headline cannot disagree with the table and charts.
+const N = DATA.length;
+const released = DATA.filter((d) => d.ch.brake && d.ch.brake.text === '놓음').length;
+const steered = DATA.filter((d) => d.ch.steer).length;
+const shifted = DATA.filter((d) => d.ch.gear).length;
+$('finding').textContent = `소리 ${N}건 중 ${released}건은 브레이크를 놓은 직후에 났습니다.`;
+$('total').textContent = `${N}건 (조향 변화 ${steered}건, 기어 변경 ${shifted}건)`;
+$('rule').textContent = `소리 시작 ${Math.abs(CHG.from)}초 전부터 ${CHG.to}초 후까지 바뀐 값만 표시합니다. 조향각은 앞바퀴 기준 ${CHG.steer}° 이상일 때만 표시합니다.`;
+
+const ICON_PLAY = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 1l11 6-11 6z"></path></svg>';
+const ICON_STOP = '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="2" width="10" height="10"></rect></svg>';
+const cell = (c) => c ? `<span class="change">${c.text} <span class="when num">${sec(c.t)}</span></span>` : '<span class="same">변화 없음</span>';
+
+$('rows').innerHTML = DATA.map((d) => `<tr data-n="${d.n}">
+  <td><button class="pick" type="button" id="pick-${d.n}" aria-pressed="false"><span class="num">${d.date} ${d.time}</span></button>
+    <span class="where">${d.area || '위치 입력 안 함'}</span>${d.win ? `<span class="chip">${d.win}</span>` : ''}</td>
+  <td class="num">${d.speed} km/h</td>
+  <td>${cell(d.ch.brake)}</td>
+  <td>${cell(d.ch.gear)}</td>
+  <td>${cell(d.ch.steer)}</td>
+  <td class="col-play"><button class="play" type="button" id="play-${d.n}" aria-label="${d.date} 녹음 재생">${ICON_PLAY}</button></td>
+</tr>`).join('');
+
+$('panels').innerHTML = DATA.map((d) => {
+  const per = d.sig.filter((p) => Number.isInteger(p.t));
+  return `<article class="panel" id="panel-${d.n}">
+    <h3><span class="num">${d.date} ${d.time}</span></h3>
+    <p class="note">시동 후 ${d.since}분, 외기 ${d.temp == null ? '데이터 없음' : d.temp + '°C'}, 팬 ${d.fan}단, ${d.win || '창문 닫힘'}</p>
+    <div class="chart" id="chart-${d.n}"></div>
+    <details><summary>신호 값 표로 보기</summary><div class="vals"><table>
+      <thead><tr><th scope="col">시점</th><th scope="col">속도</th><th scope="col">조향각</th><th scope="col">브레이크</th><th scope="col">기어</th></tr></thead>
+      <tbody>${per.map((p) => `<tr><td class="num">${p.t === 0 ? '소리 시작' : (p.t > 0 ? '+' : '−') + Math.abs(p.t) + '초'}</td><td class="num">${p.speed.toFixed(0)} km/h</td><td class="num">${p.steer.toFixed(1)}°</td><td>${p.brake ? '밟음' : '안 밟음'}</td><td class="num">${p.gear}</td></tr>`).join('')}</tbody>
+    </table></div></details>
+  </article>`;
+}).join('');
+
+const areaCount = DATA.filter((d) => d.area === AREA).length;
+const CHECKS = [
+  { what: '조수석 대시보드 내부 클립과 트림', why: `운전자 표시 위치 ${areaCount}건`, how: '소리가 날 때 대시보드 상단을 눌러 소리가 바뀌는지 확인' },
+  { what: '전방 서스펜션 부싱', why: `브레이크를 놓은 직후 ${released}건`, how: '제동 후 재출발을 반복하며 앞쪽 하체 유격 확인' },
+  { what: '글로브박스 힌지와 잠금부', why: `같은 위치 표시 ${areaCount}건`, how: '글로브박스를 비운 뒤 같은 조건으로 시운전' },
+];
+$('checks').innerHTML = CHECKS.map((c) => `<li><h3>${c.what}</h3><p><span class="label">근거</span>${c.why}</p><p><span class="label">확인 방법</span>${c.how}</p></li>`).join('');
+
+/* Charts: stacked tracks on one shared time axis. Each track keeps its own scale, so no dual axes. */
+function drawChart(d, W) {
+  const L = 30, R = 10, plotW = W - L - R;
+  const x = (t) => L + (t + WIN) / (2 * WIN) * plotW;
+  const TOP = 16, TITLE = 18;
+  const tracks = [{ key: 'speed', h: 70 }, { key: 'steer', h: 46 }, { key: 'brake', h: 14 }, { key: 'gear', h: 14 }];
+  let y = TOP;
+  tracks.forEach((tr) => { tr.top = y + TITLE; y = tr.top + tr.h + 8; });
+  const bottom = y, H = bottom + 20;
+  const parts = [];
+  parts.push(`<rect x="${x(0)}" y="${TOP}" width="${x(1.6) - x(0)}" height="${bottom - TOP}" fill="var(--band)"></rect>`);
+
+  const line = (pts) => pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('');
+  const title = (tr, name, c) => {
+    parts.push(`<text class="tt" x="${L}" y="${tr.top - 5}">${name}</text>`);
+    if (c) parts.push(`<text class="tc" x="${W - R}" y="${tr.top - 5}" text-anchor="end">${c.text} ${sec(c.t)}</text>`);
+  };
+  const marker = (t, cy) => parts.push(`<circle cx="${x(t)}" cy="${cy}" r="5" fill="var(--mark-change)" stroke="var(--sheet)" stroke-width="2"></circle>`);
+
+  // speed
+  const sp = tracks[0];
+  const max = Math.max(10, Math.ceil(Math.max(...d.sig.map((p) => p.speed)) / 10) * 10);
+  const yS = (v) => sp.top + sp.h - v / max * sp.h;
+  title(sp, '속도 (km/h)');
+  [0, max].forEach((v) => {
+    parts.push(`<line x1="${L}" x2="${W - R}" y1="${yS(v)}" y2="${yS(v)}" stroke="var(--grid)"></line>`);
+    parts.push(`<text class="tick" x="${L - 5}" y="${yS(v) + 3.5}" text-anchor="end">${v}</text>`);
+  });
+  parts.push(`<path d="${line(d.sig.map((p) => [x(p.t), yS(p.speed)]))}" fill="none" stroke="var(--mark-line)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>`);
+
+  // steering
+  const st = tracks[1];
+  const yA = (v) => st.top + st.h / 2 - v / 10 * (st.h / 2);
+  title(st, '조향각 (앞바퀴, °)', d.ch.steer);
+  [-10, 0, 10].forEach((v) => {
+    parts.push(`<line x1="${L}" x2="${W - R}" y1="${yA(v)}" y2="${yA(v)}" stroke="var(--grid)"></line>`);
+    parts.push(`<text class="tick" x="${L - 5}" y="${yA(v) + 3.5}" text-anchor="end">${v}</text>`);
+  });
+  parts.push(`<path d="${line(d.sig.map((p) => [x(p.t), yA(p.steer)]))}" fill="none" stroke="var(--mark-line)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>`);
+  if (d.ch.steer) marker(d.ch.steer.t, yA(d.sig.find((p) => p.t === d.ch.steer.t).steer));
+
+  // brake
+  const br = tracks[2];
+  title(br, '브레이크', d.ch.brake);
+  parts.push(`<line x1="${L}" x2="${W - R}" y1="${br.top + br.h}" y2="${br.top + br.h}" stroke="var(--grid)"></line>`);
+  const on = d.sig.filter((p) => p.brake);
+  if (on.length) {
+    const a = x(on[0].t), b = x(on[on.length - 1].t + DT);
+    parts.push(`<rect x="${a}" y="${br.top}" width="${b - a}" height="${br.h}" fill="var(--mark-line)"></rect>`);
+  }
+  if (d.ch.brake) marker(d.ch.brake.t, br.top + br.h / 2);
+
+  // gear
+  const gr = tracks[3];
+  title(gr, '기어', d.ch.gear);
+  parts.push(`<line x1="${L}" x2="${W - R}" y1="${gr.top + gr.h}" y2="${gr.top + gr.h}" stroke="var(--grid)"></line>`);
+  const cut = d.gear ? d.gear.at : null;
+  const segs = cut == null ? [[-WIN, WIN, 'D']] : [[-WIN, cut, d.gear.from], [cut, WIN, 'D']];
+  segs.forEach(([a, , g]) => parts.push(`<text class="tick" x="${x(a) + 8}" y="${gr.top + gr.h / 2 + 4}">${g}</text>`));
+  if (d.ch.gear) marker(d.ch.gear.t, gr.top + gr.h / 2);
+
+  // noise start
+  parts.push(`<line x1="${x(0)}" x2="${x(0)}" y1="${TOP}" y2="${bottom}" stroke="var(--ink)"></line>`);
+  parts.push(`<text class="tt" x="${x(0)}" y="11" text-anchor="middle">소리 시작</text>`);
+
+  // time axis
+  parts.push(`<line x1="${L}" x2="${W - R}" y1="${bottom}" y2="${bottom}" stroke="var(--rule)"></line>`);
+  [-15, -10, -5, 0, 5, 10, 15].forEach((t) => {
+    const lab = t === 0 ? '0초' : (t > 0 ? '+' : '−') + Math.abs(t);
+    parts.push(`<text class="tick" x="${x(t)}" y="${bottom + 14}" text-anchor="${t === -15 ? 'start' : t === 15 ? 'end' : 'middle'}">${lab}</text>`);
+  });
+
+  parts.push(`<line class="cross" x1="0" x2="0" y1="${TOP}" y2="${bottom}" stroke="var(--muted)" visibility="hidden"></line>`);
+  parts.push(`<line class="phead" x1="0" x2="0" y1="${TOP}" y2="${bottom}" stroke="var(--stamp)" stroke-width="2" visibility="hidden"></line>`);
+
+  const box = $('chart-' + d.n);
+  const parts2 = d.ch.brake ? `브레이크 ${d.ch.brake.text} ${sec(d.ch.brake.t)}` : '브레이크 변화 없음';
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${d.date} 소리 전후 ${2 * WIN}초 신호. ${parts2}. 소리 때 속도 ${d.speed}km/h.">${parts.join('')}</svg><div class="tip" hidden></div>`;
+
+  const svg = box.querySelector('svg'), tip = box.querySelector('.tip'), cross = box.querySelector('.cross');
+  const move = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const px = (ev.clientX - r.left) / r.width * W;
+    const t = Math.max(-WIN, Math.min(WIN, (px - L) / plotW * 2 * WIN - WIN));
+    const p = d.sig[Math.round((t + WIN) / DT)];
+    if (!p) return;
+    cross.setAttribute('x1', x(p.t)); cross.setAttribute('x2', x(p.t)); cross.setAttribute('visibility', 'visible');
+    tip.hidden = false;
+    tip.innerHTML = `<b>${p.t === 0 ? '소리 시작' : sec(p.t)}</b><br>속도 ${p.speed.toFixed(0)} km/h<br>조향각 ${p.steer.toFixed(1)}°<br>브레이크 ${p.brake ? '밟음' : '안 밟음'}<br>기어 ${p.gear}`;
+    const left = x(p.t) / W * r.width;
+    tip.style.left = (left > r.width / 2 ? left - tip.offsetWidth - 10 : left + 10) + 'px';
+  };
+  const leave = () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); };
+  svg.addEventListener('pointermove', move);
+  svg.addEventListener('pointerleave', leave);
+}
+
+const panels = $('panels');
+let lastW = 0;
+function drawAll() {
+  const w = Math.max(280, Math.round(panels.clientWidth - 30));
+  if (w === lastW) return;
+  lastW = w;
+  DATA.forEach((d) => drawChart(d, w));
+}
+drawAll();
+new ResizeObserver(drawAll).observe(panels);
+
+function select(n) {
+  DATA.forEach((d) => {
+    const on = d.n === n;
+    document.querySelector(`tr[data-n="${d.n}"]`).classList.toggle('on', on);
+    $('panel-' + d.n).classList.toggle('on', on);
+    $('pick-' + d.n).setAttribute('aria-pressed', String(on));
+  });
+}
+document.querySelectorAll('#rows tr').forEach((tr) => tr.addEventListener('click', (ev) => {
+  if (ev.target.closest('.play')) return;
+  select(Number(tr.dataset.n));
+}));
+select(1);
+
+/* Synthesized example sound, aligned so the first burst falls on the chart's zero. */
+const SR = 16000, DUR = 2 * WIN;
+function synth(d) {
+  const rand = rng(d.n * 7919);
+  const out = new Float32Array(SR * DUR);
+  const windy = !!d.win;
+  const coef = windy ? 0.45 : 0.12, level = windy ? 0.6 : 0.2;
+  let lp = 0;
+  for (let i = 0; i < out.length; i++) { lp += coef * ((rand() * 2 - 1) - lp); out[i] = lp * level; }
+  const f0 = 1100 + rand() * 900;
+  for (let b = 0; b < d.bursts; b++) {
+    const start = Math.floor((WIN + (b ? rand() * 1.4 : 0)) * SR);
+    const hits = 5 + Math.floor(rand() * 8), gap = SR / (24 + rand() * 18), amp = 0.3 + rand() * 0.4;
+    for (let h = 0; h < hits; h++) {
+      const at = start + Math.floor(h * gap), f = f0 * (0.9 + rand() * 0.2), len = Math.floor(SR * 0.018);
+      for (let i = 0; i < len && at + i < out.length; i++) out[at + i] += amp * Math.exp(-i / (len * 0.25)) * Math.sin(2 * Math.PI * f * i / SR);
+    }
+  }
+  let peak = 0;
+  for (let i = 0; i < out.length; i++) peak = Math.max(peak, Math.abs(out[i]));
+  for (let i = 0; i < out.length; i++) out[i] *= 0.8 / peak;
+  return out;
+}
+let ctx = null, cur = null;
+function stop() {
+  if (!cur) return;
+  cur.source.onended = null;
+  try { cur.source.stop(); } catch (e) {}
+  cancelAnimationFrame(cur.raf);
+  const btn = $('play-' + cur.d.n);
+  btn.innerHTML = ICON_PLAY;
+  btn.setAttribute('aria-label', cur.d.date + ' 녹음 재생');
+  const head = $('chart-' + cur.d.n).querySelector('.phead');
+  if (head) head.setAttribute('visibility', 'hidden');
+  cur = null;
+}
+async function play(d) {
+  stop();
+  select(d.n);
+  ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+  await ctx.resume();
+  d.clip = d.clip || synth(d);
+  const buf = ctx.createBuffer(1, d.clip.length, SR);
+  buf.copyToChannel(d.clip, 0);
+  const source = ctx.createBufferSource();
+  source.buffer = buf;
+  source.connect(ctx.destination);
+  source.start(0);
+  const at = ctx.currentTime;
+  const state = { d, source, raf: 0 };
+  cur = state;
+  const btn = $('play-' + d.n);
+  btn.innerHTML = ICON_STOP;
+  btn.setAttribute('aria-label', d.date + ' 녹음 정지');
+  const tick = () => {
+    const head = $('chart-' + d.n).querySelector('.phead');
+    const svgW = $('chart-' + d.n).querySelector('svg').viewBox.baseVal.width;
+    const px = 30 + (ctx.currentTime - at) / DUR * (svgW - 40);
+    if (head) { head.setAttribute('x1', px); head.setAttribute('x2', px); head.setAttribute('visibility', 'visible'); }
+    state.raf = requestAnimationFrame(tick);
+  };
+  tick();
+  source.onended = stop;
+}
+DATA.forEach((d) => $('play-' + d.n).addEventListener('click', () => {
+  if (cur && cur.d.n === d.n) return stop();
+  play(d);
+}));
+</script>
