@@ -144,13 +144,12 @@ class MainActivity : AppCompatActivity() {
         val sym = store.symptom
         val recs = store.recordsForSymptom()
         val root = vbox(pad = 48, gap = 32) {
-            addView(header("잡소리 리포트", "정비소에서 \"소리 안 나는데요\" 소리 안 듣게, 이 차에서 난 소리를 증거로 남깁니다."))
+            addView(header("잡소리 리포트"))
             addView(hbox(gap = 32) {
                 addView(cardBox(pad = 36, gap = 20) {
                     addView(text("등록한 증상", 22f, C.muted))
                     if (sym == null) {
                         addView(text("아직 없어요", 36f, bold = true))
-                        addView(text("처음 이상한 소리를 들었다면 위치와 소리를 골라 등록하세요.", 22f, C.muted))
                         addView(button("증상 등록하기") { showRegister() })
                     } else {
                         addView(text(sym.title, 40f, bold = true))
@@ -162,15 +161,10 @@ class MainActivity : AppCompatActivity() {
                     }
                 }.weight(1.4f))
                 addView(cardBox(pad = 36, gap = 14) {
-                    addView(text("이 차에서 쓰는 신호", 22f, C.muted))
-                    addView(text(hub.sdkStatus, 22f))
-                    addView(chip(if (useVehicleSdk) "Vehicle SDK 사용 (브레이크·조향각·창문·VIN)" else "Vehicle SDK 사용 안 함 · 시뮬레이션만", useVehicleSdk, 20f) {
+                    addView(text("차량 신호", 22f, C.muted))
+                    addView(chip(if (useVehicleSdk) "Vehicle SDK 켜짐" else "Vehicle SDK 꺼짐", useVehicleSdk, 20f) {
                         useVehicleSdk = !useVehicleSdk; showHome()
                     })
-                    addView(text("속도·기어: 에뮬레이터에 값이 없어 주행 시뮬레이션 사용", 20f, C.muted))
-                    val mic = ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-                    addView(text(if (mic) "마이크: 허용됨" else "마이크: 기록을 시작할 때 허용을 요청해요", 22f))
-                    addView(text("녹음은 기록을 켠 주행에서만, 표시한 순간의 앞 30초·뒤 10초만 저장합니다.", 20f, C.muted))
                 }.weight(1f))
             }, lp(h = 0, weight = 1f))
             addView(hbox(gap = 16) {
@@ -179,7 +173,7 @@ class MainActivity : AppCompatActivity() {
                     if (store.symptom == null) {
                         store.symptom = Symptom(UUID.randomUUID().toString(), AREAS[0], SOUNDS[0], System.currentTimeMillis()); store.save()
                     }
-                    SampleData.add(store); toast("샘플 기록 5건을 넣었어요. (시연용 가상 데이터)"); showHome()
+                    SampleData.add(store); showHome()
                 })
                 addView(button("모든 기록 지우기", "ghost", 20f) { store.clearAll(); draft = ReportDraft(); showHome() })
             })
@@ -211,7 +205,7 @@ class MainActivity : AppCompatActivity() {
         }
         render()
         val root = vbox(pad = 48, gap = 32) {
-            addView(header("증상 등록", "한 번만 등록하면, 이후 출발할 때 기록을 켜고 소리 날 때 표시만 하면 됩니다."))
+            addView(header("증상 등록"))
             addView(scroll(body), lp(h = 0, weight = 1f))
         }
         setScreen("register", root)
@@ -284,12 +278,12 @@ class MainActivity : AppCompatActivity() {
                 addView(tElapsed)
             })
             addView(hbox(gap = 20) {
-                addView(tile("속도 km/h (시뮬레이션)", tSpeed).weight(1f))
-                addView(tile("기어 (시뮬레이션)", tGear).weight(1f))
+                addView(tile("속도 km/h", tSpeed).weight(1f))
+                addView(tile("기어", tGear).weight(1f))
                 addView(tile("브레이크", tBrake).weight(1f))
                 addView(tile("조향각 (앞바퀴)", tSteer).weight(1f))
                 addView(cardBox(pad = 28, gap = 14) {
-                    addView(text(if (audio.micOk) "마이크 (최근 30초만 메모리에 보관)" else "마이크 꺼짐 · 합성음으로 저장", 22f, C.muted))
+                    addView(text("소리", 22f, C.muted))
                     addView(meterBox, lp(h = dp(36)))
                 }.weight(1.4f))
             }, lp(h = dp(200)))
@@ -300,10 +294,8 @@ class MainActivity : AppCompatActivity() {
                 addView(vbox(gap = 16) {
                     addView(tCount)
                     addView(tSaving)
-                    addView(text("실차에서는 \"글레오, 방금 소리 났어\"라고 말하면 됩니다. 확인음만 납니다.", 22f, C.muted))
                     if (useVehicleSdk) {
-                        addView(tSdk)
-                        addView(chip(if (hub.useVehicleSignals) "브레이크·조향각: Virtual Console 값 사용 중" else "브레이크·조향각: 시뮬레이션 (눌러서 Virtual Console 값 사용)", hub.useVehicleSignals, 20f) {
+                        addView(chip("Virtual Console 값 사용", hub.useVehicleSignals, 20f) {
                             hub.useVehicleSignals = !hub.useVehicleSignals; showDriving()
                         })
                     }
@@ -340,7 +332,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateCounts() {
         if (screen != "drive") return
         tCount.text = "이번 주행 ${driveMarks}번 · 지금까지 ${store.recordsForSymptom().size}번"
-        tSaving.text = if (pendingSaves > 0) "뒤 ${POST_SEC}초 소리까지 담는 중… (${pendingSaves}건)" else ""
+        tSaving.text = if (pendingSaves > 0) "저장 중…" else ""
     }
 
     /** C-05: keep 30 s before and 10 s after. The confirmation tone plays immediately. */
@@ -354,7 +346,6 @@ class MainActivity : AppCompatActivity() {
         markBtn?.animate()?.scaleX(0.96f)?.scaleY(0.96f)?.alpha(0.6f)?.setDuration(90)?.withEndAction {
             markBtn?.animate()?.scaleX(1f)?.scaleY(1f)?.alpha(1f)?.setDuration(160)?.start()
         }?.start()
-        if (screen == "drive") toast("표시했어요. 앞 30초와 뒤 10초를 저장합니다.")
         main.postDelayed({
             val sig = hub.snapshot(markMs, -PRE_SEC, POST_SEC)
             var pcm = if (audio.micOk) audio.copyAround(pos, PRE_SEC, POST_SEC) else ShortArray(0)
@@ -390,13 +381,8 @@ class MainActivity : AppCompatActivity() {
         val total = store.recordsForSymptom().size
         val root = vbox(pad = 64, gap = 36) {
             gravity = Gravity.CENTER_VERTICAL
-            addView(text("주차했어요", 28f, C.muted))
             addView(text("오늘 ${driveMarks}번 기록, 지금까지 ${total}번", 64f, bold = true))
-            if (pendingSaves > 0) addView(text("마지막 기록을 저장하는 중이에요…", 26f, C.warn))
-            addView(text(
-                if (total >= 3) "정비소에 보여줄 만큼 모였어요. 리포트를 써 보세요."
-                else "몇 번 더 모이면 정비소에서 반복되는 소리라는 걸 보여주기 쉬워요.", 26f, C.muted,
-            ))
+            if (pendingSaves > 0) addView(text("저장 중…", 26f, C.warn))
             addView(hbox(gap = 20) {
                 addView(button("리포트 쓰기", size = 30f) { showCompose() }.apply { setEnabledLook(total > 0) })
                 addView(button("처음으로", "ghost", 28f) { showHome() })
@@ -432,7 +418,7 @@ class MainActivity : AppCompatActivity() {
                     addView(vbox(gap = 4) {
                         addView(text(dateFmt.format(r.markedAt) + if (r.sample) "  · 샘플" else "", 24f, bold = true))
                         val where = r.area ?: "위치 입력 안 함"
-                        val extra = listOfNotNull(r.memo.takeIf { it.isNotBlank() }, r.windowNote, if (r.audioSynth) "합성음" else null).joinToString(" · ")
+                        val extra = listOfNotNull(r.memo.takeIf { it.isNotBlank() }, r.windowNote).joinToString(" · ")
                         addView(text("${r.speedAtMark.toInt()} km/h · ${changeSummary(r)} · $where" + if (extra.isNotEmpty()) " · $extra" else "", 20f, C.muted))
                     }, lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
                     addView(button("▶ 듣기", "ghost", 20f) { playClip(r, 0, (PRE_SEC + POST_SEC) * 1000) })
@@ -445,11 +431,11 @@ class MainActivity : AppCompatActivity() {
             editor.removeAllViews()
             val r = recs.first { it.id == editingId }
             editor.addView(text("선택한 기록 · ${dateFmt.format(r.markedAt)}", 26f, bold = true))
-            editor.addView(text("소리 위치 (운전자 설명으로 표시돼요)", 22f, C.muted))
+            editor.addView(text("소리 위치", 22f, C.muted))
             editor.addView(flow {
                 AREAS.forEach { a -> addView(chip(a, r.area == a, 20f) { r.area = if (r.area == a) null else a; store.save(); renderAll() }) }
             })
-            editor.addView(text("상황 메모", 22f, C.muted))
+            editor.addView(text("메모", 22f, C.muted))
             val tags = r.memo.split(", ").filter { it.isNotBlank() }.toMutableSet()
             editor.addView(flow {
                 MEMO_TAGS.forEach { m ->
@@ -462,23 +448,22 @@ class MainActivity : AppCompatActivity() {
             editor.addView(View(this).apply { setBackgroundColor(C.line) }, lp(h = dp(2)))
             editor.addView(text("받는 곳", 26f, bold = true))
             editor.addView(flow {
-                addView(chip("정하지 않음 (접수 창구에서 QR로 보여주기)", draft.shop == null, 20f) { draft.shop = null; renderAll() })
+                addView(chip("정하지 않음", draft.shop == null, 20f) { draft.shop = null; renderAll() })
                 SHOPS.forEach { s -> addView(chip("${s.name} · ${s.region}", draft.shop == s, 20f) { draft.shop = s; renderAll() }) }
             })
             editor.addView(text("리포트에 넣을 것", 26f, bold = true))
             editor.addView(flow {
                 addView(chip("소리 원본", draft.includeAudio, 20f) { draft.includeAudio = !draft.includeAudio; renderAll() })
-                addView(chip("차량 신호 (속도·브레이크·기어·조향각)", draft.includeSignals, 20f) { draft.includeSignals = !draft.includeSignals; renderAll() })
+                addView(chip("차량 신호", draft.includeSignals, 20f) { draft.includeSignals = !draft.includeSignals; renderAll() })
                 addView(chip("창문·공조 상태", draft.includeEnv, 20f) { draft.includeEnv = !draft.includeEnv; renderAll() })
                 addView(chip("상황 메모", draft.includeMemo, 20f) { draft.includeMemo = !draft.includeMemo; renderAll() })
             })
-            editor.addView(text("이동 경로는 넣지 않아요. 링크는 30일 뒤 만료되고 언제든 폐기할 수 있어요.", 20f, C.muted))
         }
 
         fun renderBottom() {
             bottom.removeAllViews()
             bottom.addView(button("← 처음으로", "ghost", 24f) { stopPlayback(); showHome() })
-            bottom.addView(text("${recs.size}건 중 ${draft.selected.size}건 선택", 24f, C.muted).apply { gravity = Gravity.END }, lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            bottom.addView(View(this), lp(0, 1, 1f))
             bottom.addView(button("리포트 만들기 (${draft.selected.size}건)", size = 28f) {
                 stopPlayback()
                 val built = ReportBuilder.build(this, store, draft)
@@ -490,7 +475,7 @@ class MainActivity : AppCompatActivity() {
         renderAll()
 
         val root = vbox(pad = 40, gap = 24) {
-            addView(header("리포트 쓰기", "${store.symptom!!.title} · 정비소에 보낼 기록을 고르고 위치를 적어 주세요."))
+            addView(header("리포트 쓰기"))
             addView(hbox(gap = 28) {
                 addView(scroll(list).weight(1.15f))
                 addView(scroll(cardBox(pad = 32, gap = 0) { addView(editor) }).weight(1f))
@@ -532,18 +517,14 @@ class MainActivity : AppCompatActivity() {
         }
         val qrSize = dp(360)
         val side = cardBox(pad = 32, gap = 18) {
-            addView(text("리포트가 만들어졌어요", 30f, bold = true))
-            addView(text(draft.shop?.let { "받는 곳: ${it.name} (${it.region})" } ?: "받는 곳: 접수 창구에서 QR로 보여주기", 22f, C.muted))
+            draft.shop?.let { addView(text(it.name, 26f, bold = true)) }
             addView(ImageView(this@MainActivity).apply {
                 setImageBitmap(ReportBuilder.qr(built.link, 480))
                 background = rounded(Color.WHITE, dp(12).toFloat())
                 setPadding(dp(12), dp(12), dp(12), dp(12))
             }, LinearLayout.LayoutParams(qrSize, qrSize))
-            addView(text("리포트 코드 ${built.code}", 26f, bold = true).apply { typeface = Typeface.MONOSPACE })
-            addView(text(built.link, 20f, C.accent))
-            addView(text("${built.expires}까지 열람 가능 · 폰 앱에서 언제든 폐기", 20f, C.muted))
-            addView(text("프로토타입: 서버 업로드 없이 차 안에서 만든 리포트예요. 링크·QR은 형식만 맞춘 것입니다.", 18f, C.warn))
-            addView(button("폰으로 보내기", size = 24f) { toast("프로토타입: 폰 앱 연동 전이에요. 실제로는 마이현대 예약 메모에 링크를 붙여요.") })
+            addView(text(built.code, 26f, bold = true).apply { typeface = Typeface.MONOSPACE })
+            addView(text("~ ${built.expires}", 20f, C.muted))
             addView(button("다시 고치기", "ghost", 24f) { stopPlayback(); showCompose() })
             addView(button("처음으로", "ghost", 24f) { stopPlayback(); showHome() })
         }

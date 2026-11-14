@@ -149,8 +149,6 @@ footer { display: grid; gap: 4px; border-top: 1px solid var(--rule); padding-top
 </head>
 <body>
 <main>
-  <p class="sample" role="note" id="sampleNote" hidden></p>
-
   <header class="head">
     <h1 id="title">잡소리 점검 리포트</h1>
     <p class="finding" id="finding"></p>
@@ -166,7 +164,6 @@ footer { display: grid; gap: 4px; border-top: 1px solid var(--rule); padding-top
 
   <section aria-labelledby="t-title">
     <h2 id="t-title">소리 전후로 바뀐 신호 (오래된 순)</h2>
-    <p class="note" id="rule"></p>
     <div class="table-wrap">
       <table>
         <thead>
@@ -182,29 +179,20 @@ footer { display: grid; gap: 4px; border-top: 1px solid var(--rule); padding-top
         <tbody id="rows"></tbody>
       </table>
     </div>
-    <p class="note">운전자가 표시한 순간만 집계했습니다. 표시하지 않은 순간에 소리가 났는지는 알 수 없습니다.</p>
   </section>
 
   <section aria-labelledby="c-title" id="sigSection">
     <h2 id="c-title">그 순간의 신호</h2>
-    <p class="note pick-hint">위 표에서 행을 고르면 바뀝니다. 신호는 차량 앱이 자동 기록하며 운전자가 수정할 수 없습니다.</p>
     <div id="panels" style="display:grid;gap:10px;min-width:0"></div>
   </section>
 
   <section aria-labelledby="k-title">
-    <h2 id="k-title">이렇게 확인해 보세요 (참고용)</h2>
-    <p class="note">기록된 조건을 정리한 것이며 원인을 판단하지 않습니다.</p>
+    <h2 id="k-title">확인해 볼 것</h2>
     <ul class="check-list" id="checks"></ul>
   </section>
 
-  <section aria-labelledby="p-title">
-    <h2 id="p-title">녹음 출처</h2>
-    <p class="note" id="proof"></p>
-  </section>
-
   <footer class="note">
-    <p>리포트 생성 <span class="num" id="created"></span>. 링크 만료 <span class="num" id="expires"></span>. 리포트 코드 <span class="num" id="code"></span>.</p>
-    <p>소리 위치와 메모는 운전자가 입력한 값입니다. 운전자가 받는 곳과 포함 항목을 확인한 뒤 공유한 리포트입니다.</p>
+    <p>생성 <span class="num" id="created"></span> · 만료 <span class="num" id="expires"></span> · 코드 <span class="num" id="code"></span></p>
   </footer>
 </main>
 
@@ -242,10 +230,6 @@ const avgSpeed = N ? Math.round(DATA.reduce((a, d) => a + d.speed, 0) / N) : 0;
 const areaCount = DATA.filter((d) => d.area).length;
 const topArea = (() => { const m = {}; DATA.forEach((d) => { if (d.area) m[d.area] = (m[d.area] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1])[0]; })();
 
-const notes = [];
-if (BSR.anySample) notes.push('샘플 기록이 포함되어 있습니다(시연용 가상 데이터).');
-if (BSR.anySynth) notes.push('일부 소리는 시연용 합성음입니다(에뮬레이터에 마이크 입력이 없음).');
-if (notes.length) { $('sampleNote').hidden = false; $('sampleNote').textContent = '프로토타입 리포트입니다. ' + notes.join(' '); }
 
 const cands = [
   { k: 'release', c: released, text: `소리 ${N}건 중 ${released}건은 브레이크를 놓은 직후에 났습니다.`, todo: '브레이크로 감속한 뒤 다시 출발할 때 들어 보세요.' },
@@ -266,11 +250,7 @@ $('vehicle').textContent = BSR.vehicle + (BSR.vin ? ` · VIN ****${BSR.vin}` : '
 $('period').textContent = BSR.from === BSR.to ? BSR.from : `${BSR.from} ~ ${BSR.to.slice(5)}`;
 $('total').textContent = SIG ? `${N}건 (조향 변화 ${steered}건, 기어 변경 ${shifted}건)` : `${N}건`;
 if (BSR.shop) { $('shopRow').hidden = false; $('shop').textContent = BSR.shop; }
-$('rule').textContent = SIG
-  ? `소리 시작 ${Math.abs(CHG.from)}초 전부터 ${CHG.to}초 후까지 바뀐 값만 표시합니다. 조향각은 앞바퀴 기준 ${CHG.steer}° 이상일 때만 표시합니다.`
-  : '운전자가 차량 신호를 리포트에서 뺐습니다.';
 $('created').textContent = BSR.created; $('expires').textContent = BSR.expires; $('code').textContent = BSR.code;
-$('proof').textContent = `차량 내장 마이크로 차량 앱이 직접 녹음했습니다. 표시한 순간의 앞 30초와 뒤 10초만 저장합니다. 기록 묶음 해시 ${BSR.hash}… (기록별 해시는 표의 각 행에 있습니다)` + (BSR.anySynth ? ' 이 프로토타입에서는 에뮬레이터에 마이크 입력이 없어, 해당 기록의 소리를 시연용 합성음으로 대신 저장했습니다.' : '');
 if (!SIG) { $('sigSection').hidden = true; document.querySelectorAll('.sigcol').forEach((e) => e.hidden = true); }
 
 const ICON_PLAY = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 1l11 6-11 6z"></path></svg>';
@@ -280,8 +260,7 @@ const envText = (d) => [d.fan != null ? `팬 ${d.fan}단` : null, d.temp != null
 
 $('rows').innerHTML = DATA.map((d) => `<tr data-n="${d.n}">
   <td><button class="pick" type="button" id="pick-${d.n}" aria-pressed="false"><span class="num">${d.date} ${d.time}</span></button>
-    <span class="where">${esc(d.area || '위치 입력 안 함')}${d.memo ? ' · ' + esc(d.memo) : ''}</span>${d.win ? `<span class="chip">${esc(d.win)}</span>` : ''}${d.sample ? '<span class="chip">샘플</span>' : ''}
-    <span class="where num">해시 ${d.hash}</span></td>
+    <span class="where">${esc(d.area || '위치 입력 안 함')}${d.memo ? ' · ' + esc(d.memo) : ''}</span>${d.win ? `<span class="chip">${esc(d.win)}</span>` : ''}${d.sample ? '<span class="chip">샘플</span>' : ''}</td>
   <td class="num">${d.speed} km/h</td>
   ${SIG ? `<td>${cell(d.ch.brake)}</td><td>${cell(d.ch.gear)}</td><td>${cell(d.ch.steer)}</td>` : ''}
   <td class="col-play">${d.audio ? `<button class="play" type="button" id="play-${d.n}" aria-label="${d.date} 녹음 재생">${ICON_PLAY}</button>` : '<span class="same">없음</span>'}</td>
@@ -304,7 +283,7 @@ const CHECKS = [];
 if (topArea) CHECKS.push({ what: `${topArea[0]} 주변`, why: `운전자 표시 위치 ${topArea[1]}건`, how: '소리가 날 때 그 주변을 눌러 소리가 바뀌는지 확인' });
 if (SIG && topC && topC.c >= 1) CHECKS.push({ what: '같은 조작으로 재현', why: topC.text.replace(/^소리 /, ''), how: topC.todo });
 CHECKS.push({ what: '소리 때 속도', why: `평균 ${avgSpeed}km/h`, how: '같은 속도 부근에서 창문을 닫고 시운전' });
-$('checks').innerHTML = CHECKS.map((c) => `<li><h3>${esc(c.what)}</h3><p><span class="label">근거</span>${esc(c.why)}</p><p><span class="label">확인 방법</span>${esc(c.how)}</p></li>`).join('');
+$('checks').innerHTML = CHECKS.map((c) => `<li><h3>${esc(c.what)}</h3><p>${esc(c.how)}</p></li>`).join('');
 
 function drawChart(d, W) {
   const L = 30, R = 10, plotW = W - L - R;

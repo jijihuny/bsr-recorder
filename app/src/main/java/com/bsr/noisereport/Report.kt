@@ -78,7 +78,7 @@ object ReportBuilder {
             put("symptom", sym?.title ?: "")
             put("symptomArea", sym?.area ?: "")
             put("vehicle", store.vehicleLabel)
-            put("vin", store.vin?.takeLast(6) ?: JSONObject.NULL)
+            put("vin", store.vin?.takeIf { it.matches(Regex("[A-HJ-NPR-Z0-9]{11,17}")) }?.takeLast(6) ?: JSONObject.NULL)
             put("from", recs.firstOrNull()?.let { isoDay.format(it.markedAt) } ?: "")
             put("to", recs.lastOrNull()?.let { isoDay.format(it.markedAt) } ?: "")
             put("created", isoDay.format(now))
