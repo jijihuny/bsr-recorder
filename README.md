@@ -1,10 +1,50 @@
-# BSR Recorder
+# 잡소리 리포트 (BSR Report)
 
-Pleos Connect(현대자동차그룹 인포테인먼트)용 차량 잡소리 기록 앱입니다. 운전 중 잡소리를 녹음하고 그 순간의 차량 상태를 함께 기록해, 정비소에 보여줄 리포트로 만듭니다.
+재현이 어려운 차량 잡소리를 운전 중 음성 한 마디로 기록하고, 소리 전후의 차량 상태 변화를 담은 리포트로 정비소에 증명하는 Pleos Connect 앱입니다.
 
+- 팀: BEQUIET
 - 패키지: `com.bsr.noisereport`
 - Pleos Playground 프로젝트: `bsr_recorder` (카테고리: 모빌리티 서비스)
-- 리포트 목업: [`mockups/mechanic-report.html`](mockups/mechanic-report.html)
+
+## APK
+
+- 위치: [`apk/BEQUIET_BSR_Report_release.apk`](apk/BEQUIET_BSR_Report_release.apk) (release 서명)
+- 설치: 에뮬레이터를 켠 뒤 `adb install -g apk/BEQUIET_BSR_Report_release.apk`
+- 이전에 debug 빌드를 설치했다면 서명이 달라 먼저 `adb uninstall com.bsr.noisereport`가 필요합니다.
+
+## 테스트 환경
+
+| 항목 | 값 |
+|---|---|
+| 에뮬레이터 | Pleos Connect Emulator v2.1.0 (Android 14 / API 34, Automotive, x86_64) |
+| 화면 규격 | 2560 × 1440, 160 dpi (앱 영역 약 1680 × 1210) |
+| AVD 설정 | RAM 4GB, Cold boot |
+| 테스트 PC | Windows 10, Intel Iris Xe |
+
+## 실행 방법
+
+1. 에뮬레이터를 Cold boot로 켜고 APK를 설치합니다(아래 1장 참고).
+2. 앱 목록에서 **잡소리 리포트**를 엽니다.
+3. **증상 등록**에서 소리 위치와 종류를 고릅니다. 바로 리포트를 보려면 홈의 **샘플 기록 5건 넣기**를 누릅니다.
+4. **기록 시작하고 출발** → 소리가 나면 **방금 소리 났어** → **주차하고 기록 끝내기**
+5. **리포트 쓰기**에서 보낼 기록, 소리 위치, 받는 곳을 고르고 **리포트 만들기**를 누르면 정비사용 리포트와 QR이 나옵니다.
+
+음성 명령(Gleo)은 승인 전이라 같은 동작을 adb로 보낼 수 있습니다.
+
+```bash
+adb shell am start --user current -a MARK_NOISE -n com.bsr.noisereport/.MainActivity
+```
+
+`MARK_NOISE` 대신 `START_TRACKING`(기록 시작), `TRACKING_STATUS`(기록 횟수)도 됩니다.
+
+## 필요한 설정과 제약
+
+- **속도·기어**: 에뮬레이터와 Vehicle SDK에 값이 없어 앱 내 주행 시뮬레이션 값을 씁니다.
+- **브레이크·조향각**: 기록 화면의 **Virtual Console 값 사용**을 켜면 Vehicle SDK 값을 씁니다(4장 Virtual Console).
+- **마이크**: PC 마이크 입력을 켜야 실제 소리가 녹음됩니다(5장). 입력이 무음이면 시연용 합성음으로 대신 저장합니다.
+- **서버**: 아직 없습니다. 리포트는 차 화면 안에서만 열리고, 링크·QR은 형식만 맞춘 것입니다.
+- 프로토타입 구조와 코드 위치는 [`PROTOTYPE.md`](PROTOTYPE.md)에 있습니다.
+- 리포트 디자인 목업: [`mockups/mechanic-report.html`](mockups/mechanic-report.html)
 
 ## 개발 환경
 
@@ -68,7 +108,20 @@ foreach ($d in '.gradle','build','app\build','.kotlin','.git') {
 ./gradlew installDebug
 ```
 
-첫 화면은 Vehicle SDK로 운전석 도어 위치를 읽어 표시합니다.
+release APK는 `keystore.properties`(Git 제외)가 있을 때 서명됩니다. 형식은 다음과 같습니다.
+
+```properties
+storeFile=C:/path/to/bsr-release.jks
+storePassword=...
+keyAlias=bsr
+keyPassword=...
+```
+
+```bash
+./gradlew assembleRelease
+```
+
+GitHub Actions의 **Release APK** 워크플로는 저장소 Secrets(`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`)로 같은 서명의 APK를 만듭니다.
 
 ## 4. Pleos Connect Virtual Console
 

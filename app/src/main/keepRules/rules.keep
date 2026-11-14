@@ -10,3 +10,8 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+# WebView JS bridge used by the report page (window.BSRBridge).
+-keepclassmembers class com.bsr.noisereport.MainActivity$Bridge {
+    @android.webkit.JavascriptInterface public *;
+}

@@ -19,3 +19,5 @@ pleos.properties
 # prototype dev helpers
 tools/logs/
 tools/q/
+keystore.properties
+*.jks
