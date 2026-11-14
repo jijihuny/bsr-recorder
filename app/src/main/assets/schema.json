@@ -1,0 +1,38 @@
+{
+  "packageName": "com.bsr.noisereport",
+  "appDescription": "Records proof of abnormal cabin noises: it keeps a short audio and vehicle-signal buffer while tracking and saves it when the driver says a noise just happened.",
+  "invokeWord": "잡소리 리포트",
+  "version": "1.0",
+  "actionCalls": [
+    {
+      "function": {
+        "name": "MARK_NOISE",
+        "description": "Save the last 30 seconds and the next 10 seconds of cabin audio and vehicle signals because the driver just heard the registered noise.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "location": { "type": "string", "description": "Where in the cabin the driver heard the noise, in the driver's words." }
+          },
+          "required": []
+        }
+      },
+      "component": "activity"
+    },
+    {
+      "function": {
+        "name": "START_TRACKING",
+        "description": "Start keeping the rolling audio and vehicle-signal buffer for the registered noise symptom on this drive.",
+        "parameters": { "type": "object", "properties": {}, "required": [] }
+      },
+      "component": "activity"
+    },
+    {
+      "function": {
+        "name": "TRACKING_STATUS",
+        "description": "Tell the driver how many noises were saved on this drive and in total for the open symptom.",
+        "parameters": { "type": "object", "properties": {}, "required": [] }
+      },
+      "component": "activity"
+    }
+  ]
+}

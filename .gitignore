@@ -15,3 +15,7 @@
 .cxx
 local.properties
 pleos.properties
+
+# prototype dev helpers
+tools/logs/
+tools/q/

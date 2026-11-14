@@ -5,8 +5,16 @@
     <uses-feature
         android:name="android.hardware.type.automotive"
         android:required="true" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
 
-    <uses-permission android:name="pleos.car.permission.CAR_DOORS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Vehicle SDK read permissions (all protection level normal). -->
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <uses-permission android:name="pleos.car.permission.CAR_INFO" />
+    <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />
+    <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
 
     <application
         android:allowBackup="true"
@@ -20,10 +28,20 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Gleo App Schema actions (assets/schema.json). Also usable from adb: am start -a MARK_NOISE -->
+            <intent-filter>
+                <action android:name="MARK_NOISE" />
+                <action android:name="START_TRACKING" />
+                <action android:name="TRACKING_STATUS" />
+                <action android:name="com.bsr.noisereport.SNAPSHOT" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
     </application>

@@ -8,6 +8,7 @@ appcompat = "1.6.1"
 material = "1.10.0"
 # The getting-started guide says 2.3.1, but that version is not published (404). 2.3.2 is the latest.
 pleosVehicle = "2.3.2"
+zxing = "3.5.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -16,6 +17,7 @@ androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "j
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 pleos-vehicle = { group = "ai.pleos.playground", name = "Vehicle", version.ref = "pleosVehicle" }
 
 [plugins]

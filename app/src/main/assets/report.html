@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>잡소리 점검 리포트</title>
+<style>
+/* Layout: one question, "what changed in the car when the noise happened?" Finding, then a change table in time order, then the signals of the chosen capture. */
+:root {
+  --paper: #f3f5f7;
+  --sheet: #ffffff;
+  --ink: #16202b;
+  --muted: #5a6875;
+  --rule: #cfd6dd;
+  --grid: #e3e7ec;
+  --band: #e4e8ed;
+  --stamp: #1d4fb8;
+  --stamp-soft: #e6edfa;
+  --flag: #8a4b00;
+  --flag-soft: #fbeedb;
+  --mark-line: #1d4fb8;
+  --mark-change: #c25e00;
+  --body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --data: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #10161d; --sheet: #182029; --ink: #e8edf2; --muted: #9aa8b5; --rule: #33404d; --grid: #27323d; --band: #2a3540;
+    --stamp: #8fb2f5; --stamp-soft: #1f2c44; --flag: #f0b866; --flag-soft: #3a2b14;
+    --mark-line: #5f88e2; --mark-change: #c07f22;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #10161d; --sheet: #182029; --ink: #e8edf2; --muted: #9aa8b5; --rule: #33404d; --grid: #27323d; --band: #2a3540;
+  --stamp: #8fb2f5; --stamp-soft: #1f2c44; --flag: #f0b866; --flag-soft: #3a2b14;
+  --mark-line: #5f88e2; --mark-change: #c07f22;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 15px/1.55 var(--body);
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+table, button { font: inherit; color: inherit; }
+main { max-width: 900px; margin-inline: auto; display: grid; gap: 26px; }
+main > * { min-width: 0; }
+h1, h2, h3, p { margin: 0; }
+h2 { font-size: 17px; font-weight: 700; text-wrap: balance; }
+.num { font-family: var(--data); font-variant-numeric: tabular-nums; }
+.note { color: var(--muted); font-size: 13px; }
+section { display: grid; gap: 10px; }
+section > * { min-width: 0; }
+
+.sample { background: var(--flag-soft); color: var(--flag); border: 1px solid var(--flag); padding: 8px 12px; font-size: 13px; font-weight: 500; }
+
+.head { display: grid; gap: 10px; border-bottom: 2px solid var(--ink); padding-bottom: 16px; }
+.head h1 { font-size: 15px; font-weight: 700; color: var(--muted); }
+.finding { font-size: 25px; font-weight: 700; line-height: 1.35; text-wrap: balance; }
+.todo { font-size: 16px; }
+.todo b { color: var(--stamp); }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 0; font-size: 13px; }
+.meta div { display: flex; gap: 6px; }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; font-weight: 500; }
+
+.table-wrap { background: var(--sheet); border: 1px solid var(--rule); overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 7px 8px; border-bottom: 2px solid var(--ink); white-space: nowrap; }
+td { padding: 8px; vertical-align: top; border-top: 1px solid var(--rule); }
+tbody tr:first-child td { border-top: 0; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--paper); }
+tbody tr.on td { background: var(--stamp-soft); }
+.pick { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; font-weight: 500; white-space: nowrap; }
+.pick:focus-visible, .play:focus-visible { outline: 2px solid var(--stamp); outline-offset: 2px; }
+.where { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+.chip { display: inline-block; background: var(--flag-soft); color: var(--flag); font-size: 12px; font-weight: 500; padding: 0 5px; margin-top: 2px; }
+.change { font-weight: 700; display: inline-flex; gap: 5px; align-items: baseline; flex-wrap: wrap; }
+.change::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--mark-change); flex: none; }
+.when { font-weight: 400; font-size: 12px; white-space: nowrap; }
+.same { color: var(--muted); font-size: 12px; }
+.play { width: 34px; height: 34px; border: 1px solid var(--stamp); background: var(--sheet); color: var(--stamp); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.play:hover { background: var(--stamp-soft); }
+.play svg { width: 12px; height: 12px; fill: currentColor; display: block; }
+
+.panel { display: none; gap: 8px; background: var(--sheet); border: 1px solid var(--rule); padding: 14px; }
+.panel.on { display: grid; }
+.panel > * { min-width: 0; }
+.panel h3 { font-size: 15px; font-weight: 700; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
+.chart text { font-family: var(--body); fill: var(--muted); font-size: 11px; }
+.chart text.tt { fill: var(--ink); font-size: 12px; font-weight: 500; }
+.chart text.tc { fill: var(--ink); font-size: 12px; font-weight: 700; }
+.chart text.tick { font-family: var(--data); font-size: 10.5px; }
+.tip { position: absolute; top: 0; pointer-events: none; background: var(--ink); color: var(--sheet); font-size: 12px; line-height: 1.45; padding: 5px 8px; white-space: nowrap; z-index: 2; }
+details { font-size: 13px; }
+summary { cursor: pointer; color: var(--muted); }
+.vals { overflow-x: auto; margin-top: 6px; }
+.vals table { font-size: 12px; }
+.vals th, .vals td { padding: 3px 8px; white-space: nowrap; }
+
+.check-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.check-list li { display: grid; gap: 3px; align-content: start; border-top: 1px solid var(--rule); padding-top: 8px; }
+.check-list h3 { font-size: 15px; font-weight: 700; }
+.check-list p { font-size: 13px; }
+.label { color: var(--muted); font-size: 12px; font-weight: 500; margin-right: 6px; }
+footer { display: grid; gap: 4px; border-top: 1px solid var(--rule); padding-top: 12px; }
+
+@media screen and (max-width: 640px) {
+  .finding { font-size: 21px; }
+  table { font-size: 13px; }
+  td, th { padding-inline: 5px; }
+  .panel { padding: 10px; }
+  .check-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  :root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
+    --paper: #ffffff; --sheet: #ffffff; --ink: #000000; --muted: #444b52; --rule: #9aa3ab; --grid: #dfe3e7; --band: #e4e8ed;
+    --stamp: #123a8f; --stamp-soft: #ffffff; --flag: #6b3a00; --flag-soft: #f8efe2;
+    --mark-line: #1d4fb8; --mark-change: #c25e00;
+    color-scheme: light;
+  }
+  body { padding: 0; font-size: 10pt; }
+  main { max-width: none; display: block; }
+  main > * { margin-bottom: 14px; }
+  section { display: block; }
+  section > * { margin-bottom: 6px; }
+  #panels { display: block !important; }
+  .panel { margin-bottom: 8px; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .finding { font-size: 16pt; }
+  .play, .col-play, details, .pick-hint { display: none; }
+  .panel { display: grid; break-inside: avoid; padding: 8px; }
+  .table-wrap { overflow: visible; }
+  tbody tr { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<main>
+  <p class="sample" role="note" id="sampleNote" hidden></p>
+
+  <header class="head">
+    <h1 id="title">잡소리 점검 리포트</h1>
+    <p class="finding" id="finding"></p>
+    <p class="todo" id="todo"></p>
+    <dl class="meta">
+      <div><dt>증상</dt><dd id="symptom"></dd></div>
+      <div><dt>차량</dt><dd id="vehicle"></dd></div>
+      <div><dt>기간</dt><dd class="num" id="period"></dd></div>
+      <div><dt>녹음</dt><dd id="total"></dd></div>
+      <div id="shopRow" hidden><dt>받는 곳</dt><dd id="shop"></dd></div>
+    </dl>
+  </header>
+
+  <section aria-labelledby="t-title">
+    <h2 id="t-title">소리 전후로 바뀐 신호 (오래된 순)</h2>
+    <p class="note" id="rule"></p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">일시, 소리 위치</th>
+            <th scope="col">소리 때 속도</th>
+            <th scope="col" class="sigcol">브레이크</th>
+            <th scope="col" class="sigcol">기어</th>
+            <th scope="col" class="sigcol">조향각</th>
+            <th scope="col" class="col-play"><span class="note">듣기</span></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="note">운전자가 표시한 순간만 집계했습니다. 표시하지 않은 순간에 소리가 났는지는 알 수 없습니다.</p>
+  </section>
+
+  <section aria-labelledby="c-title" id="sigSection">
+    <h2 id="c-title">그 순간의 신호</h2>
+    <p class="note pick-hint">위 표에서 행을 고르면 바뀝니다. 신호는 차량 앱이 자동 기록하며 운전자가 수정할 수 없습니다.</p>
+    <div id="panels" style="display:grid;gap:10px;min-width:0"></div>
+  </section>
+
+  <section aria-labelledby="k-title">
+    <h2 id="k-title">이렇게 확인해 보세요 (참고용)</h2>
+    <p class="note">기록된 조건을 정리한 것이며 원인을 판단하지 않습니다.</p>
+    <ul class="check-list" id="checks"></ul>
+  </section>
+
+  <section aria-labelledby="p-title">
+    <h2 id="p-title">녹음 출처</h2>
+    <p class="note" id="proof"></p>
+  </section>
+
+  <footer class="note">
+    <p>리포트 생성 <span class="num" id="created"></span>. 링크 만료 <span class="num" id="expires"></span>. 리포트 코드 <span class="num" id="code"></span>.</p>
+    <p>소리 위치와 메모는 운전자가 입력한 값입니다. 운전자가 받는 곳과 포함 항목을 확인한 뒤 공유한 리포트입니다.</p>
+  </footer>
+</main>
+
+<script>
+const BSR = /*__BSR_DATA__*/null;
+const $ = (id) => document.getElementById(id);
+const FROM = -15, TO = 10, DT = 0.2;
+const CHG = { from: -3, to: 1, steer: 5 };
+const sec = (t) => (t < 0 ? '−' : '+') + Math.abs(t).toFixed(1) + '초';
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function findChanges(sig) {
+  const inWin = sig.filter((p) => p.t >= CHG.from - 1e-6 && p.t <= CHG.to + 1e-6);
+  const res = { brake: null, gear: null, steer: null };
+  if (inWin.length < 2) return res;
+  for (let i = 1; i < inWin.length; i++) {
+    const a = inWin[i - 1], b = inWin[i];
+    if (a.brake !== b.brake) res.brake = { t: b.t, text: b.brake ? '밟음' : '놓음' };
+    if (a.gear !== b.gear) res.gear = { t: b.t, text: `${a.gear}→${b.gear}` };
+  }
+  const base = inWin[0].steer;
+  const hit = inWin.find((p) => Math.abs(p.steer - base) >= CHG.steer);
+  if (hit) res.steer = { t: hit.t, text: `${Math.round(hit.steer - base) > 0 ? '+' : ''}${Math.round(hit.steer - base)}°` };
+  return res;
+}
+
+const DATA = BSR.events.map((e) => ({ ...e, ch: findChanges(e.sig) }));
+const N = DATA.length;
+const SIG = BSR.includeSignals;
+const released = DATA.filter((d) => d.ch.brake && d.ch.brake.text === '놓음').length;
+const pressed = DATA.filter((d) => d.ch.brake && d.ch.brake.text === '밟음').length;
+const steered = DATA.filter((d) => d.ch.steer).length;
+const shifted = DATA.filter((d) => d.ch.gear).length;
+const avgSpeed = N ? Math.round(DATA.reduce((a, d) => a + d.speed, 0) / N) : 0;
+const areaCount = DATA.filter((d) => d.area).length;
+const topArea = (() => { const m = {}; DATA.forEach((d) => { if (d.area) m[d.area] = (m[d.area] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1])[0]; })();
+
+const notes = [];
+if (BSR.anySample) notes.push('샘플 기록이 포함되어 있습니다(시연용 가상 데이터).');
+if (BSR.anySynth) notes.push('일부 소리는 시연용 합성음입니다(에뮬레이터에 마이크 입력이 없음).');
+if (notes.length) { $('sampleNote').hidden = false; $('sampleNote').textContent = '프로토타입 리포트입니다. ' + notes.join(' '); }
+
+const cands = [
+  { k: 'release', c: released, text: `소리 ${N}건 중 ${released}건은 브레이크를 놓은 직후에 났습니다.`, todo: '브레이크로 감속한 뒤 다시 출발할 때 들어 보세요.' },
+  { k: 'press', c: pressed, text: `소리 ${N}건 중 ${pressed}건은 브레이크를 밟는 순간에 났습니다.`, todo: '브레이크를 밟아 감속할 때 들어 보세요.' },
+  { k: 'steer', c: steered, text: `소리 ${N}건 중 ${steered}건은 핸들을 돌리는 중에 났습니다.`, todo: '저속에서 핸들을 크게 돌릴 때 들어 보세요.' },
+  { k: 'gear', c: shifted, text: `소리 ${N}건 중 ${shifted}건은 기어를 바꾼 직후에 났습니다.`, todo: '정차 중 기어를 바꿀 때 들어 보세요.' },
+].sort((a, b) => b.c - a.c);
+const topC = cands[0];
+if (SIG && topC && topC.c >= 2) {
+  $('finding').textContent = topC.text;
+  $('todo').innerHTML = `<b>먼저 이렇게 시운전해 보세요.</b> ${topC.todo}`;
+} else {
+  $('finding').textContent = N ? `같은 소리를 ${N}번 표시했습니다.` : '표시한 소리가 없습니다.';
+  $('todo').innerHTML = `<b>먼저 이렇게 시운전해 보세요.</b> 소리 때 속도(평균 ${avgSpeed}km/h) 부근으로 달리며 들어 보세요.`;
+}
+$('symptom').textContent = BSR.symptom;
+$('vehicle').textContent = BSR.vehicle + (BSR.vin ? ` · VIN ****${BSR.vin}` : '');
+$('period').textContent = BSR.from === BSR.to ? BSR.from : `${BSR.from} ~ ${BSR.to.slice(5)}`;
+$('total').textContent = SIG ? `${N}건 (조향 변화 ${steered}건, 기어 변경 ${shifted}건)` : `${N}건`;
+if (BSR.shop) { $('shopRow').hidden = false; $('shop').textContent = BSR.shop; }
+$('rule').textContent = SIG
+  ? `소리 시작 ${Math.abs(CHG.from)}초 전부터 ${CHG.to}초 후까지 바뀐 값만 표시합니다. 조향각은 앞바퀴 기준 ${CHG.steer}° 이상일 때만 표시합니다.`
+  : '운전자가 차량 신호를 리포트에서 뺐습니다.';
+$('created').textContent = BSR.created; $('expires').textContent = BSR.expires; $('code').textContent = BSR.code;
+$('proof').textContent = `차량 내장 마이크로 차량 앱이 직접 녹음했습니다. 표시한 순간의 앞 30초와 뒤 10초만 저장합니다. 기록 묶음 해시 ${BSR.hash}… (기록별 해시는 표의 각 행에 있습니다)` + (BSR.anySynth ? ' 이 프로토타입에서는 에뮬레이터에 마이크 입력이 없어, 해당 기록의 소리를 시연용 합성음으로 대신 저장했습니다.' : '');
+if (!SIG) { $('sigSection').hidden = true; document.querySelectorAll('.sigcol').forEach((e) => e.hidden = true); }
+
+const ICON_PLAY = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 1l11 6-11 6z"></path></svg>';
+const ICON_STOP = '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="2" width="10" height="10"></rect></svg>';
+const cell = (c) => c ? `<span class="change">${c.text} <span class="when num">${sec(c.t)}</span></span>` : '<span class="same">변화 없음</span>';
+const envText = (d) => [d.fan != null ? `팬 ${d.fan}단` : null, d.temp != null ? `실내 ${d.temp}°C` : null, d.win || (BSR.includeEnv ? '창문 닫힘' : null)].filter(Boolean).join(', ');
+
+$('rows').innerHTML = DATA.map((d) => `<tr data-n="${d.n}">
+  <td><button class="pick" type="button" id="pick-${d.n}" aria-pressed="false"><span class="num">${d.date} ${d.time}</span></button>
+    <span class="where">${esc(d.area || '위치 입력 안 함')}${d.memo ? ' · ' + esc(d.memo) : ''}</span>${d.win ? `<span class="chip">${esc(d.win)}</span>` : ''}${d.sample ? '<span class="chip">샘플</span>' : ''}
+    <span class="where num">해시 ${d.hash}</span></td>
+  <td class="num">${d.speed} km/h</td>
+  ${SIG ? `<td>${cell(d.ch.brake)}</td><td>${cell(d.ch.gear)}</td><td>${cell(d.ch.steer)}</td>` : ''}
+  <td class="col-play">${d.audio ? `<button class="play" type="button" id="play-${d.n}" aria-label="${d.date} 녹음 재생">${ICON_PLAY}</button>` : '<span class="same">없음</span>'}</td>
+</tr>`).join('');
+
+$('panels').innerHTML = DATA.map((d) => {
+  const per = d.sig.filter((p) => Math.abs(p.t - Math.round(p.t)) < 1e-6);
+  return `<article class="panel" id="panel-${d.n}">
+    <h3><span class="num">${d.date} ${d.time}</span></h3>
+    <p class="note">시동 후 ${d.since}분${envText(d) ? ', ' + esc(envText(d)) : ''}${d.odo != null ? `, 누적 ${Math.round(d.odo).toLocaleString()}km` : ''}</p>
+    <div class="chart" id="chart-${d.n}"></div>
+    <details><summary>신호 값 표로 보기</summary><div class="vals"><table>
+      <thead><tr><th scope="col">시점</th><th scope="col">속도</th><th scope="col">조향각</th><th scope="col">브레이크</th><th scope="col">기어</th></tr></thead>
+      <tbody>${per.map((p) => `<tr><td class="num">${Math.abs(p.t) < 1e-6 ? '소리 시작' : (p.t > 0 ? '+' : '−') + Math.abs(Math.round(p.t)) + '초'}</td><td class="num">${p.speed.toFixed(0)} km/h</td><td class="num">${p.steer.toFixed(1)}°</td><td>${p.brake ? '밟음' : '안 밟음'}</td><td class="num">${p.gear}</td></tr>`).join('')}</tbody>
+    </table></div></details>
+  </article>`;
+}).join('');
+
+const CHECKS = [];
+if (topArea) CHECKS.push({ what: `${topArea[0]} 주변`, why: `운전자 표시 위치 ${topArea[1]}건`, how: '소리가 날 때 그 주변을 눌러 소리가 바뀌는지 확인' });
+if (SIG && topC && topC.c >= 1) CHECKS.push({ what: '같은 조작으로 재현', why: topC.text.replace(/^소리 /, ''), how: topC.todo });
+CHECKS.push({ what: '소리 때 속도', why: `평균 ${avgSpeed}km/h`, how: '같은 속도 부근에서 창문을 닫고 시운전' });
+$('checks').innerHTML = CHECKS.map((c) => `<li><h3>${esc(c.what)}</h3><p><span class="label">근거</span>${esc(c.why)}</p><p><span class="label">확인 방법</span>${esc(c.how)}</p></li>`).join('');
+
+function drawChart(d, W) {
+  const L = 30, R = 10, plotW = W - L - R;
+  const x = (t) => L + (t - FROM) / (TO - FROM) * plotW;
+  const TOP = 16, TITLE = 18;
+  const tracks = [{ key: 'speed', h: 70 }, { key: 'steer', h: 46 }, { key: 'brake', h: 14 }, { key: 'gear', h: 14 }];
+  let y = TOP;
+  tracks.forEach((tr) => { tr.topC = y + TITLE; y = tr.topC + tr.h + 8; });
+  const bottom = y, H = bottom + 20;
+  const parts = [];
+  parts.push(`<rect x="${x(0)}" y="${TOP}" width="${x(1.6) - x(0)}" height="${bottom - TOP}" fill="var(--band)"></rect>`);
+  const line = (pts) => pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('');
+  const title = (tr, name, c) => {
+    parts.push(`<text class="tt" x="${L}" y="${tr.topC - 5}">${name}</text>`);
+    if (c) parts.push(`<text class="tc" x="${W - R}" y="${tr.topC - 5}" text-anchor="end">${c.text} ${sec(c.t)}</text>`);
+  };
+  const marker = (t, cy) => parts.push(`<circle cx="${x(t)}" cy="${cy}" r="5" fill="var(--mark-change)" stroke="var(--sheet)" stroke-width="2"></circle>`);
+
+  const sp = tracks[0];
+  const max = Math.max(10, Math.ceil(Math.max(...d.sig.map((p) => p.speed)) / 10) * 10);
+  const yS = (v) => sp.topC + sp.h - v / max * sp.h;
+  title(sp, '속도 (km/h)');
+  [0, max].forEach((v) => {
+    parts.push(`<line x1="${L}" x2="${W - R}" y1="${yS(v)}" y2="${yS(v)}" stroke="var(--grid)"></line>`);
+    parts.push(`<text class="tick" x="${L - 5}" y="${yS(v) + 3.5}" text-anchor="end">${v}</text>`);
+  });
+  parts.push(`<path d="${line(d.sig.map((p) => [x(p.t), yS(p.speed)]))}" fill="none" stroke="var(--mark-line)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>`);
+
+  const st = tracks[1];
+  const smax = Math.max(10, Math.ceil(Math.max(...d.sig.map((p) => Math.abs(p.steer))) / 10) * 10);
+  const yA = (v) => st.topC + st.h / 2 - v / smax * (st.h / 2);
+  title(st, '조향각 (앞바퀴, °)', d.ch.steer);
+  [-smax, 0, smax].forEach((v) => {
+    parts.push(`<line x1="${L}" x2="${W - R}" y1="${yA(v)}" y2="${yA(v)}" stroke="var(--grid)"></line>`);
+    parts.push(`<text class="tick" x="${L - 5}" y="${yA(v) + 3.5}" text-anchor="end">${v}</text>`);
+  });
+  parts.push(`<path d="${line(d.sig.map((p) => [x(p.t), yA(p.steer)]))}" fill="none" stroke="var(--mark-line)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>`);
+  if (d.ch.steer) { const p = d.sig.find((q) => Math.abs(q.t - d.ch.steer.t) < 1e-6); if (p) marker(d.ch.steer.t, yA(p.steer)); }
+
+  const br = tracks[2];
+  title(br, '브레이크', d.ch.brake);
+  parts.push(`<line x1="${L}" x2="${W - R}" y1="${br.topC + br.h}" y2="${br.topC + br.h}" stroke="var(--grid)"></line>`);
+  let runStart = null;
+  d.sig.forEach((p, i) => {
+    if (p.brake && runStart == null) runStart = p.t;
+    const last = i === d.sig.length - 1;
+    if (runStart != null && (!p.brake || last)) {
+      const end = p.brake ? p.t + DT : p.t;
+      parts.push(`<rect x="${x(runStart)}" y="${br.topC}" width="${Math.max(1, x(end) - x(runStart))}" height="${br.h}" fill="var(--mark-line)"></rect>`);
+      runStart = null;
+    }
+  });
+  if (d.ch.brake) marker(d.ch.brake.t, br.topC + br.h / 2);
+
+  const gr = tracks[3];
+  title(gr, '기어', d.ch.gear);
+  parts.push(`<line x1="${L}" x2="${W - R}" y1="${gr.topC + gr.h}" y2="${gr.topC + gr.h}" stroke="var(--grid)"></line>`);
+  d.sig.forEach((p, i) => { if (i === 0 || p.gear !== d.sig[i - 1].gear) parts.push(`<text class="tick" x="${x(p.t) + 8}" y="${gr.topC + gr.h / 2 + 4}">${p.gear}</text>`); });
+  if (d.ch.gear) marker(d.ch.gear.t, gr.topC + gr.h / 2);
+
+  parts.push(`<line x1="${x(0)}" x2="${x(0)}" y1="${TOP}" y2="${bottom}" stroke="var(--ink)"></line>`);
+  parts.push(`<text class="tt" x="${x(0)}" y="11" text-anchor="middle">소리 표시</text>`);
+  parts.push(`<line x1="${L}" x2="${W - R}" y1="${bottom}" y2="${bottom}" stroke="var(--rule)"></line>`);
+  [-15, -10, -5, 0, 5, 10].forEach((t) => {
+    const lab = t === 0 ? '0초' : (t > 0 ? '+' : '−') + Math.abs(t);
+    parts.push(`<text class="tick" x="${x(t)}" y="${bottom + 14}" text-anchor="${t === FROM ? 'start' : t === TO ? 'end' : 'middle'}">${lab}</text>`);
+  });
+  parts.push(`<line class="phead" x1="0" x2="0" y1="${TOP}" y2="${bottom}" stroke="var(--stamp)" stroke-width="2" visibility="hidden"></line>`);
+  $('chart-' + d.n).innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">${parts.join('')}</svg>`;
+}
+
+const panels = $('panels');
+let lastW = 0;
+function drawAll() {
+  if (!SIG) return;
+  const w = Math.max(280, Math.round(panels.clientWidth - 30));
+  if (w === lastW) return;
+  lastW = w;
+  DATA.forEach((d) => drawChart(d, w));
+}
+drawAll();
+new ResizeObserver(drawAll).observe(panels);
+
+function select(n) {
+  DATA.forEach((d) => {
+    const on = d.n === n;
+    document.querySelector(`tr[data-n="${d.n}"]`).classList.toggle('on', on);
+    const p = $('panel-' + d.n); if (p) p.classList.toggle('on', on);
+    $('pick-' + d.n).setAttribute('aria-pressed', String(on));
+  });
+}
+document.querySelectorAll('#rows tr').forEach((tr) => tr.addEventListener('click', (ev) => {
+  if (ev.target.closest('.play')) return;
+  select(Number(tr.dataset.n));
+}));
+if (N) select(1);
+
+/* Playback goes through the native bridge: the car app plays the saved clip from -15 s to +10 s. */
+let cur = null;
+function setBtn(n, playing) {
+  const b = $('play-' + n); if (!b) return;
+  b.innerHTML = playing ? ICON_STOP : ICON_PLAY;
+}
+function stopPlay() {
+  if (!cur) return;
+  cancelAnimationFrame(cur.raf); setBtn(cur.d.n, false);
+  const head = document.querySelector(`#chart-${cur.d.n} .phead`); if (head) head.setAttribute('visibility', 'hidden');
+  if (window.BSRBridge) BSRBridge.stop();
+  cur = null;
+}
+window.onNativePlaybackEnded = () => stopPlay();
+function play(d) {
+  stopPlay(); select(d.n);
+  if (window.BSRBridge) BSRBridge.play(d.id, 30000 + FROM * 1000, (TO - FROM) * 1000);
+  const at = performance.now();
+  cur = { d, raf: 0 }; setBtn(d.n, true);
+  const tick = () => {
+    const el = (performance.now() - at) / 1000;
+    if (el > TO - FROM) return stopPlay();
+    const svg = document.querySelector(`#chart-${d.n} svg`);
+    const head = document.querySelector(`#chart-${d.n} .phead`);
+    if (svg && head) {
+      const W = svg.viewBox.baseVal.width; const px = 30 + el / (TO - FROM) * (W - 40);
+      head.setAttribute('x1', px); head.setAttribute('x2', px); head.setAttribute('visibility', 'visible');
+    }
+    cur.raf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+DATA.forEach((d) => { const b = $('play-' + d.n); if (b) b.addEventListener('click', () => { if (cur && cur.d.n === d.n) return stopPlay(); play(d); }); });
+</script>
+
+</body>
+</html>
